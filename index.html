@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kyami Audio App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --yellow: #FFD700; --bg: #050505; }
+        body { background-color: var(--bg); color: #fff; font-family: sans-serif; -webkit-tap-highlight-color: transparent; }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .active-tab { color: var(--yellow); border-bottom: 3px solid var(--yellow); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .book-card { transition: all 0.2s ease; cursor: pointer; }
+        .book-card:active { transform: scale(0.95); }
+    </style>
+</head>
+<body class="pb-40">
+
+    <header class="sticky top-0 z-50 glass px-6 py-4 flex justify-between items-center">
+        <h1 class="text-xl font-black italic">KYAMI<span class="text-[var(--yellow)]">.</span></h1>
+        <div id="status" class="text-[8px] font-mono text-gray-600 uppercase tracking-tighter">Sync: Online</div>
+    </header>
+
+    <nav id="tabs" class="flex gap-6 px-6 py-4 overflow-x-auto no-scrollbar bg-[#050505] sticky top-[60px] z-40 border-b border-white/5"></nav>
+
+    <main id="grid" class="px-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mt-6"></main>
+
+    <div id="player" class="fixed bottom-6 left-4 right-4 glass p-4 rounded-3xl border border-white/10 hidden z-50 shadow-2xl">
+        <div class="flex items-center gap-4">
+            <img id="p-img" src="" class="w-12 h-12 rounded-xl object-cover bg-white/10">
+            <div class="flex-1 min-w-0">
+                <h4 id="p-title" class="font-bold text-xs truncate text-white">Loading...</h4>
+                <p id="p-author" class="text-[9px] text-gray-500 uppercase tracking-widest">Author</p>
+            </div>
+            <button onclick="document.getElementById('player').classList.add('hidden')" class="text-gray-500">✕</button>
+        </div>
+        <audio id="audio" controls class="w-full h-8 mt-4 invert opacity-70"></audio>
+    </div>
+
+    <script>
+        const RELEASE_URL = "https://github.com/x0x7F/Kyami/releases/download/v1.0/";
+        let currentBooks = [];
+
+        async function init() {
+            const res = await fetch('./web_data/categories_index.json');
+            const categories = await res.json();
+            
+            const tabs = document.getElementById('tabs');
+            tabs.innerHTML = categories.map(c => `
+                <button onclick="loadCat('${c.slug}')" id="t-${c.slug}" class="text-[10px] font-black uppercase text-gray-500 pb-1">
+                    ${c.name}
+                </button>
+            `).join('');
+
+            if(categories.length > 0) loadCat(categories[0].slug);
+        }
+
+        async function loadCat(slug) {
+            document.querySelectorAll('#tabs button').forEach(b => b.classList.remove('active-tab', 'text-white'));
+            document.getElementById(`t-${slug}`).classList.add('active-tab', 'text-white');
+
+            const res = await fetch(`./web_data/${slug}.json`);
+            currentBooks = await res.json();
+            render();
+        }
+
+        function render() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = currentBooks.map(b => {
+                // Correct Local Path for Images
+                const imgPath = `./shwenote_data/books/${b.id}/images/cover.jpg`;
+                
+                return `
+                <div class="book-card glass rounded-[2rem] p-3">
+                    <div class="aspect-[3/4] rounded-[1.5rem] overflow-hidden bg-white/5 mb-3">
+                        <img src="${imgPath}" loading="lazy" onerror="this.src='https://placehold.co/300x400/111/333?text=Cover'" class="w-full h-full object-cover">
+                    </div>
+                    <h3 class="text-[11px] font-bold h-7 line-clamp-2 mb-1">${b.title_mm || b.title}</h3>
+                    <button onclick="play('${b.id}', '${(b.title_mm || b.title).replace(/'/g, "\\'")}', '${imgPath}')" 
+                            class="w-full py-2 bg-[var(--yellow)] text-black rounded-xl text-[9px] font-black uppercase mt-2">
+                        Play
+                    </button>
+                </div>`;
+            }).join('');
+        }
+
+        function play(id, title, img) {
+            const p = document.getElementById('player');
+            const a = document.getElementById('audio');
+            document.getElementById('p-title').innerText = title;
+            document.getElementById('p-img').src = img;
+            a.src = `${RELEASE_URL}${id}.mp3`;
+            p.classList.remove('hidden');
+            a.play();
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
